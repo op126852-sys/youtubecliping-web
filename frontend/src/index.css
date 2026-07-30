@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* Design brief palette — Short Video Editor / Soft UI Evolution.
+     Stored as "R G B" channels (not hex) so Tailwind's rgb(var(...) / <alpha-value>)
+     pattern in tailwind.config.js can generate working opacity modifiers
+     like bg-primary/10. See tailwind.config.js `colors`. */
+  --color-primary: 236 72 153; /* #EC4899 */
+  --color-on-primary: 255 255 255; /* #FFFFFF */
+  --color-secondary: 219 39 119; /* #DB2777 */
+  --color-accent: 37 99 235; /* #2563EB */
+  --color-on-accent: 255 255 255; /* #FFFFFF */
+  --color-background: 15 23 42; /* #0F172A */
+  --color-foreground: 255 255 255; /* #FFFFFF */
+  --color-card: 25 33 52; /* #192134 */
+  --color-muted: 32 26 50; /* #201A32 */
+  --color-muted-foreground: 148 163 184; /* #94A3B8 */
+  --color-destructive: 220 38 38; /* #DC2626 */
+  --color-ring: 236 72 153; /* #EC4899 */
+}
+
+* {
+  border-color: rgba(255, 255, 255, 0.08); /* brief's border color */
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased font-sans;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Consistent, visible keyboard focus using the brief's ring color. */
+:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgb(var(--color-background)),
+    0 0 0 4px rgb(var(--color-ring));
+  border-radius: 6px;
+}
+
+::selection {
+  background: rgb(var(--color-primary) / 0.35);
+}
+
+/* Slim, dark-friendly scrollbars */
+* {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.bg-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 800px 100%;
+}
