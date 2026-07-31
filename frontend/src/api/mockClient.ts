@@ -4,6 +4,7 @@
 // "backend unreachable" banner without a live backend.
 import type { ClipOptions, Job } from '../types'
 import { ApiError } from './apiError'
+import { accentFor, generateMockThumbnail, generateMockVideo } from './mockMedia'
 import type { ApiClient } from './types'
 
 const NOW = () => new Date().toISOString()
@@ -12,6 +13,8 @@ interface MockJobRecord {
   job: Job
   createdAtMs: number
   shouldFail: boolean
+  /** clipId -> object URL of a synthesized, genuinely playable/downloadable clip. */
+  media: Map<string, string>
 }
 
 const store = new Map<string, MockJobRecord>()
@@ -70,18 +73,41 @@ function computeState(record: MockJobRecord): Pick<Job, 'status' | 'progress' | 
   return { status: 'completed', progress: 100, message: 'Done!' }
 }
 
-function buildClips(options: ClipOptions, jobId: string): Job['clips'] {
-  return Array.from({ length: options.numClips }, (_, i) => ({
-    id: `${jobId}-clip-${i}`,
-    index: i,
-    startTime: i * options.clipLength,
-    duration: options.clipLength,
-    hasSubtitles: options.subtitles !== 'none',
-    downloadUrl: `/api/jobs/${jobId}/clips/${jobId}-clip-${i}/download`,
-    // Deliberately points at a path nothing serves, so the UI's thumbnail
-    // placeholder fallback (a documented, expected 404 per the contract) gets exercised.
-    thumbnailUrl: i % 3 === 0 ? undefined : `/api/jobs/${jobId}/clips/${jobId}-clip-${i}/thumbnail`,
-  }))
+function buildClips(options: ClipOptions, jobId: string, media: Map<string, string>): Job['clips'] {
+  return Array.from({ length: options.numClips }, (_, i) => {
+    const id = `${jobId}-clip-${i}`
+    const label = `Clip ${i + 1}`
+    const accent = accentFor(i)
+    return {
+      id,
+      index: i,
+      startTime: i * options.clipLength,
+      duration: options.clipLength,
+      hasSubtitles: options.subtitles !== 'none',
+      // Synthesized clip if ready; falls back to an unreachable path (matching
+      // the real API's shape) if canvas video recording isn't available yet/at all.
+      downloadUrl: media.get(id) ?? `/api/jobs/${jobId}/clips/${id}/download`,
+      // Every third clip deliberately has no thumbnail, so the UI's placeholder
+      // fallback still gets exercised alongside the real generated ones.
+      thumbnailUrl: i % 3 === 0 ? undefined : generateMockThumbnail(label, accent),
+    }
+  })
+}
+
+/** Fire-and-forget: synthesizes each clip's video in the background so it's
+ * ready well before the job's simulated pipeline reaches "completed". */
+async function warmMedia(jobId: string, options: ClipOptions) {
+  await Promise.all(
+    Array.from({ length: options.numClips }, async (_, i) => {
+      const id = `${jobId}-clip-${i}`
+      try {
+        const url = await generateMockVideo(`Clip ${i + 1}`, accentFor(i))
+        store.get(jobId)?.media.set(id, url)
+      } catch {
+        // Browser can't record canvas video — clip keeps its unreachable fallback URL.
+      }
+    }),
+  )
 }
 
 let mockHealthDown = import.meta.env.VITE_MOCK_HEALTH_DOWN === 'true'
@@ -122,12 +148,15 @@ export const mockApiClient: ApiClient = {
       createdAt: NOW(),
       updatedAt: NOW(),
     }
+    const shouldFail = /fail/i.test(options.url)
     store.set(jobId, {
       job,
       createdAtMs,
       // Magic trigger for QA: any URL containing "fail" simulates a failed job.
-      shouldFail: /fail/i.test(options.url),
+      shouldFail,
+      media: new Map(),
     })
+    if (!shouldFail) void warmMedia(jobId, options)
     return { jobId }
   },
 
@@ -141,7 +170,7 @@ export const mockApiClient: ApiClient = {
     const job: Job = {
       ...record.job,
       ...state,
-      clips: state.status === 'completed' ? buildClips(record.job.options, id) : [],
+      clips: state.status === 'completed' ? buildClips(record.job.options, id, record.media) : [],
       updatedAt: NOW(),
     }
     record.job = job
@@ -150,6 +179,7 @@ export const mockApiClient: ApiClient = {
 
   cancelJob: async (id: string) => {
     await delay(150)
+    for (const url of store.get(id)?.media.values() ?? []) URL.revokeObjectURL(url)
     store.delete(id)
   },
 

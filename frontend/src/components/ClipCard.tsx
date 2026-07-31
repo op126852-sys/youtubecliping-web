@@ -11,6 +11,7 @@ export function ClipCard({ clip }: { clip: Clip }) {
   const thumbSrc = clip.thumbnailUrl ? api.resolveUrl(clip.thumbnailUrl) : undefined
   const downloadHref = api.resolveUrl(clip.downloadUrl)
   const label = `Clip ${clip.index + 1}`
+  const downloadName = downloadHref.startsWith('blob:') ? `clip-${clip.index + 1}.webm` : undefined
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-soft transition-transform duration-250 hover:-translate-y-0.5">
@@ -21,6 +22,8 @@ export function ClipCard({ clip }: { clip: Clip }) {
               src={downloadHref}
               controls
               autoPlay
+              muted
+              playsInline
               preload="metadata"
               className="h-full w-full bg-black object-contain"
             >
@@ -83,7 +86,7 @@ export function ClipCard({ clip }: { clip: Clip }) {
 
         <a
           href={downloadHref}
-          download
+          download={downloadName}
           className="mt-auto inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors duration-200 hover:bg-blue-600 active:scale-[0.98]"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">

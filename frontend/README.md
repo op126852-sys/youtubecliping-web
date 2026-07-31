@@ -54,8 +54,11 @@ VITE_USE_MOCK_API=true
 
 Then `npm run dev` and:
 - Any normal-looking YouTube URL walks through queued → completed over ~11s,
-  with fabricated clips (including a deliberately-missing thumbnail on some
-  clips, to exercise the "thumbnail 404 → placeholder" fallback).
+  with fabricated clips. Each clip's preview and download are real, playable
+  webm files synthesized in-browser (Canvas + MediaRecorder, see
+  `src/api/mockMedia.ts`) — no video files or backend required. Every third
+  clip deliberately has no thumbnail, to exercise the "thumbnail → placeholder"
+  fallback.
 - A URL containing the word `fail` (e.g.
   `https://www.youtube.com/watch?v=FAILFAILFAIL`) walks through to a
   `failed` status with a sample error message, to check the failed-job view.
