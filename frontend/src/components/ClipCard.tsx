@@ -13,6 +13,22 @@ export function ClipCard({ clip }: { clip: Clip }) {
   const label = `Clip ${clip.index + 1}`
   const downloadName = downloadHref.startsWith('blob:') ? `clip-${clip.index + 1}.webm` : undefined
 
+  // Inside the Claude Artifact viewer, blob: URLs can't be handed to the
+  // browser's native download flow (no server-fetchable bytes for the host
+  // to intercept). Route through the viewer's `downloads` capability instead
+  // when it's available; otherwise fall back to the plain anchor download
+  // below, which is what the real deployed app uses.
+  async function handleDownloadClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (!downloadHref.startsWith('blob:') || !window.claude?.downloads) return
+    e.preventDefault()
+    try {
+      const blob = await fetch(downloadHref).then((r) => r.blob())
+      await window.claude.downloads.save({ filename: downloadName ?? 'clip.webm', data: blob })
+    } catch {
+      // Viewer declined the save prompt, or the capability isn't available here.
+    }
+  }
+
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-soft transition-transform duration-250 hover:-translate-y-0.5">
       <div className="relative aspect-video w-full overflow-hidden bg-muted">
@@ -22,6 +38,7 @@ export function ClipCard({ clip }: { clip: Clip }) {
               src={downloadHref}
               controls
               autoPlay
+              loop
               muted
               playsInline
               preload="metadata"
@@ -87,6 +104,7 @@ export function ClipCard({ clip }: { clip: Clip }) {
         <a
           href={downloadHref}
           download={downloadName}
+          onClick={handleDownloadClick}
           className="mt-auto inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors duration-200 hover:bg-blue-600 active:scale-[0.98]"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
